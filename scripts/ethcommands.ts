@@ -50,7 +50,6 @@ async function bridgeFunds(argv: any, parentChainUrl: string, chainUrl: string, 
     }
   }
 }
-
 export const bridgeFundsCommand = {
   command: "bridge-funds",
   describe: "sends funds from l1 to l2",
