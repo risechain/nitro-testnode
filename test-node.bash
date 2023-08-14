@@ -2,7 +2,7 @@
 
 set -e
 
-NITRO_NODE_VERSION=offchainlabs/nitro-node:v2.0.14-2baa834-dev
+NITRO_NODE_VERSION=offchainlabs/nitro-node:v2.1.0-beta.1-03a2aea-dev
 BLOCKSCOUT_VERSION=offchainlabs/blockscout:v1.0.0-c8db5b1
 
 mydir=`dirname $0`
@@ -35,6 +35,7 @@ validate=false
 detach=false
 blockscout=false
 tokenbridge=true
+l3node=false
 consensusclient=false
 redundantsequencers=0
 dev_build_nitro=false
@@ -110,6 +111,10 @@ while [[ $# -gt 0 ]]; do
         --pos)
             consensusclient=true
             l1chainid=32382
+            shift
+            ;;
+        --l3node)
+            l3node=true
             shift
             ;;
         --redundantsequencers)
@@ -189,13 +194,24 @@ if $validate; then
 else
     NODES="$NODES staker-unsafe"
 fi
+if $l3node; then
+    NODES="$NODES l3node"
+fi
 if $blockscout; then
     NODES="$NODES blockscout"
 fi
 if $force_build; then
   echo == Building..
   if $dev_build_nitro; then
-    docker build . -t nitro-node-dev --target nitro-node-dev
+    if ! [ -n "${NITRO_SRC+set}" ]; then
+        NITRO_SRC=`dirname $PWD`
+    fi
+    if ! grep ^FROM "${NITRO_SRC}/Dockerfile" | grep nitro-node 2>&1 > /dev/null; then
+        echo nitro source not found in "$NITRO_SRC"
+        echo execute from a sub-directory of nitro or use NITRO_SRC environment variable
+        exit 1
+    fi
+    docker build "$NITRO_SRC" -t nitro-node-dev --target nitro-node-dev
   fi
   if $dev_build_blockscout; then
     if $blockscout; then
@@ -231,6 +247,27 @@ if $force_build; then
     docker-compose build --no-rm $NODES scripts
 fi
 
+
+# Helper method that waits for a given URL to be up. Can't use
+# cURL's built-in retry logic because connection reset errors
+# are ignored unless you're using a very recent version of cURL
+function wait_up {
+  echo -n "Waiting for $1 to come up..."
+  i=0
+  until curl -s -f -o /dev/null "$1"
+  do
+    echo -n .
+    sleep 0.25
+
+    ((i=i+1))
+    if [ "$i" -eq 300 ]; then
+      echo " Timeout!" >&2
+      exit 1
+    fi
+  done
+  echo "Done!"
+}
+
 if $force_init; then
     echo == Removing old data..
     docker-compose down
@@ -243,6 +280,11 @@ if $force_init; then
     if [ `echo $leftoverVolumes | wc -w` -gt 0 ]; then
         docker volume rm $leftoverVolumes
     fi
+
+    echo == Bringing up Celestia Devnet
+    docker-compose up -d da
+    wait_up http://localhost:26659/header/1
+    export CELESTIA_NODE_AUTH_TOKEN="$(docker exec nitro-testnode-da-1 celestia bridge auth admin --node.store /bridge)"
 
     echo == Generating l1 keys
     docker-compose run scripts write-accounts
@@ -281,13 +323,16 @@ if $force_init; then
     docker-compose run scripts send-l1 --ethamount 1000 --to user_l1user --wait
     docker-compose run scripts send-l1 --ethamount 0.0001 --from user_l1user --to user_l1user_b --wait --delay 500 --times 500 > /dev/null &
 
+    echo == Writing l2 chain config
+    docker-compose run scripts write-l2-chain-config
+
     echo == Deploying L2
     sequenceraddress=`docker-compose run scripts print-address --account sequencer | tail -n 1 | tr -d '\r\n'`
 
-    docker-compose run --entrypoint /usr/local/bin/deploy poster --l1conn ws://geth:8546 --l1keystore /home/user/l1keystore --sequencerAddress $sequenceraddress --ownerAddress $sequenceraddress --l1DeployAccount $sequenceraddress --l1deployment /config/deployment.json --authorizevalidators 10 --wasmrootpath /home/user/target/machines --l1chainid=$l1chainid
-
+    docker-compose run --entrypoint /usr/local/bin/deploy poster --l1conn ws://geth:8546 --l1keystore /home/user/l1keystore --sequencerAddress $sequenceraddress --ownerAddress $sequenceraddress --l1DeployAccount $sequenceraddress --l1deployment /config/deployment.json --authorizevalidators 10 --wasmrootpath /home/user/target/machines --l1chainid=$l1chainid --l2chainconfig /config/l2_chain_config.json --l2chainname arb-dev-test --l2chaininfo /config/deployed_chain_info.json
+    docker-compose run --entrypoint sh poster -c "jq [.[]] /config/deployed_chain_info.json > /config/l2_chain_info.json"
     echo == Writing configs
-    docker-compose run scripts write-config
+    docker-compose run scripts write-config --authToken $CELESTIA_NODE_AUTH_TOKEN
 
     echo == Initializing redis
     docker-compose run scripts redis-init --redundancy $redundantsequencers
@@ -301,6 +346,33 @@ if $force_init; then
         docker-compose run -e ARB_KEY=$devprivkey -e ETH_KEY=$devprivkey tokenbridge gen:network
         docker-compose run --entrypoint sh tokenbridge -c "cat localNetwork.json"
         echo
+    fi
+
+    if $l3node; then
+        echo == Funding l3 users
+        docker-compose run scripts send-l2 --ethamount 1000 --to l3owner --wait
+        docker-compose run scripts send-l2 --ethamount 1000 --to l3sequencer --wait
+
+
+        echo == create l2 traffic
+        docker-compose run scripts send-l2 --ethamount 100 --to user_l2user --wait
+        docker-compose run scripts send-l2 --ethamount 0.0001 --from user_l2user --to user_l2user_b --wait --delay 500 --times 500 > /dev/null &
+
+        echo == Writing l3 chain config
+        docker-compose run scripts write-l3-chain-config
+
+        echo == Deploying L3
+        l3owneraddress=`docker-compose run scripts print-address --account l3owner | tail -n 1 | tr -d '\r\n'`
+
+        l3sequenceraddress=`docker-compose run scripts print-address --account l3sequencer | tail -n 1 | tr -d '\r\n'`
+
+        docker-compose run --entrypoint /usr/local/bin/deploy poster --l1conn ws://sequencer:8548 --l1keystore /home/user/l1keystore --sequencerAddress $l3sequenceraddress --ownerAddress $l3owneraddress --l1DeployAccount $l3owneraddress --l1deployment /config/l3deployment.json --authorizevalidators 10 --wasmrootpath /home/user/target/machines --l1chainid=412346 --l2chainconfig /config/l3_chain_config.json --l2chainname orbit-dev-test --l2chaininfo /config/deployed_l3_chain_info.json
+        docker-compose run --entrypoint sh poster -c "jq [.[]] /config/deployed_l3_chain_info.json > /config/l3_chain_info.json"
+
+        echo == Funding l3 funnel
+        docker-compose up -d l3node poster
+        docker-compose run scripts bridge-to-l3 --ethamount 50000 --wait
+
     fi
 fi
 
