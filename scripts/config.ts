@@ -32,7 +32,7 @@ DEPOSIT_CONTRACT_ADDRESS: 0x4242424242424242424242424242424242424242
 }
 
 function writeGethGenesisConfig(argv: any) {
-   const gethConfig =  `
+    const gethConfig = `
     {
         "config": {
             "ChainName": "l1_chain",
@@ -152,10 +152,10 @@ function writeGethGenesisConfig(argv: any) {
 
 function writeConfigs(argv: any) {
     const valJwtSecret = path.join(consts.configpath, "val_jwt.hex")
-	const chainInfoFile = path.join(consts.configpath, "l2_chain_info.json")
+    const chainInfoFile = path.join(consts.configpath, "l2_chain_info.json")
     const baseConfig = {
         "parent-chain": {
-            "connection" : {
+            "connection": {
                 "url": argv.l1url,
             },
             "wallet": {
@@ -206,16 +206,22 @@ function writeConfigs(argv: any) {
                 "max-delay": "30s",
                 "data-poster": {
                     "redis-signer": {
-                      "signing-key": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+                        "signing-key": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
                     },
                     "wait-for-l1-finality": false
                 }
             },
             "block-validator": {
-				"validation-server" : {
-					"url": argv.validationNodeUrl,
-					"jwtsecret": valJwtSecret,
-				}
+                "validation-server": {
+                    "url": argv.validationNodeUrl,
+                    "jwtsecret": valJwtSecret,
+                }
+            },
+            "celestia-cfg": {
+                "enable": true,
+                "rpc": "http://da:26658",
+                "namespace-id": "000008e5f679bf7116cb",
+                "auth-token": argv.authToken,
             }
         },
         "persistent": {
@@ -258,7 +264,7 @@ function writeConfigs(argv: any) {
     fs.writeFileSync(path.join(consts.configpath, "poster_config.json"), JSON.stringify(posterConfig))
 
     let l3Config = JSON.parse(baseConfJSON)
-    l3Config["parent-chain"].connection.url = argv.l2url 
+    l3Config["parent-chain"].connection.url = argv.l2url
     l3Config["parent-chain"].wallet.account = namedAccount("l3sequencer").address
     l3Config.chain.id = 333333
     const l3ChainInfoFile = path.join(consts.configpath, "l3_chain_info.json")
@@ -296,32 +302,32 @@ function writeConfigs(argv: any) {
 
 function writeL2ChainConfig(argv: any) {
     const l2ChainConfig = {
-		"chainId": 412346,
-		"homesteadBlock": 0,
-		"daoForkSupport": true,
-		"eip150Block": 0,
-		"eip150Hash": "0x0000000000000000000000000000000000000000000000000000000000000000",
-		"eip155Block": 0,
-		"eip158Block": 0,
-		"byzantiumBlock": 0,
-		"constantinopleBlock": 0,
-		"petersburgBlock": 0,
-		"istanbulBlock": 0,
-		"muirGlacierBlock": 0,
-		"berlinBlock": 0,
-		"londonBlock": 0,
-		"clique": {
-			"period": 0,
-			"epoch": 0
-		},
-		"arbitrum": {
-			"EnableArbOS": true,
-			"AllowDebugPrecompiles": true,
-			"DataAvailabilityCommittee": false,
-			"InitialArbOSVersion": 11,
-			"InitialChainOwner": argv.l2owner,
-			"GenesisBlockNum": 0
-		}
+        "chainId": 412346,
+        "homesteadBlock": 0,
+        "daoForkSupport": true,
+        "eip150Block": 0,
+        "eip150Hash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "eip155Block": 0,
+        "eip158Block": 0,
+        "byzantiumBlock": 0,
+        "constantinopleBlock": 0,
+        "petersburgBlock": 0,
+        "istanbulBlock": 0,
+        "muirGlacierBlock": 0,
+        "berlinBlock": 0,
+        "londonBlock": 0,
+        "clique": {
+            "period": 0,
+            "epoch": 0
+        },
+        "arbitrum": {
+            "EnableArbOS": true,
+            "AllowDebugPrecompiles": true,
+            "DataAvailabilityCommittee": false,
+            "InitialArbOSVersion": 11,
+            "InitialChainOwner": argv.l2owner,
+            "GenesisBlockNum": 0
+        }
     }
     const l2ChainConfigJSON = JSON.stringify(l2ChainConfig)
     fs.writeFileSync(path.join(consts.configpath, "l2_chain_config.json"), l2ChainConfigJSON)
@@ -329,32 +335,32 @@ function writeL2ChainConfig(argv: any) {
 
 function writeL3ChainConfig(argv: any) {
     const l3ChainConfig = {
-		"chainId": 333333,
-		"homesteadBlock": 0,
-		"daoForkSupport": true,
-		"eip150Block": 0,
-		"eip150Hash": "0x0000000000000000000000000000000000000000000000000000000000000000",
-		"eip155Block": 0,
-		"eip158Block": 0,
-		"byzantiumBlock": 0,
-		"constantinopleBlock": 0,
-		"petersburgBlock": 0,
-		"istanbulBlock": 0,
-		"muirGlacierBlock": 0,
-		"berlinBlock": 0,
-		"londonBlock": 0,
-		"clique": {
-			"period": 0,
-			"epoch": 0
-		},
-		"arbitrum": {
-			"EnableArbOS": true,
-			"AllowDebugPrecompiles": true,
-			"DataAvailabilityCommittee": false,
-			"InitialArbOSVersion": 11,
-			"InitialChainOwner": "0x0000000000000000000000000000000000000000",
-			"GenesisBlockNum": 0
-		}
+        "chainId": 333333,
+        "homesteadBlock": 0,
+        "daoForkSupport": true,
+        "eip150Block": 0,
+        "eip150Hash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "eip155Block": 0,
+        "eip158Block": 0,
+        "byzantiumBlock": 0,
+        "constantinopleBlock": 0,
+        "petersburgBlock": 0,
+        "istanbulBlock": 0,
+        "muirGlacierBlock": 0,
+        "berlinBlock": 0,
+        "londonBlock": 0,
+        "clique": {
+            "period": 0,
+            "epoch": 0
+        },
+        "arbitrum": {
+            "EnableArbOS": true,
+            "AllowDebugPrecompiles": true,
+            "DataAvailabilityCommittee": false,
+            "InitialArbOSVersion": 11,
+            "InitialChainOwner": "0x0000000000000000000000000000000000000000",
+            "GenesisBlockNum": 0
+        }
     }
     const l3ChainConfigJSON = JSON.stringify(l3ChainConfig)
     fs.writeFileSync(path.join(consts.configpath, "l3_chain_config.json"), l3ChainConfigJSON)

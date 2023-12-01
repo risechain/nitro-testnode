@@ -247,6 +247,26 @@ if $force_build; then
     docker-compose build --no-rm $NODES scripts
 fi
 
+# Helper method that waits for a given URL to be up. Can't use
+# cURL's built-in retry logic because connection reset errors
+# are ignored unless you're using a very recent version of cURL
+function wait_up {
+  echo -n "Waiting for $1 to come up..."
+  i=0
+  until curl -s -f -o /dev/null "$1"
+  do
+    echo -n .
+    sleep 0.25
+
+    ((i=i+1))
+    if [ "$i" -eq 300 ]; then
+      echo " Timeout!" >&2
+      exit 1
+    fi
+  done
+  echo "Done!"
+}
+
 if $force_init; then
     echo == Removing old data..
     docker-compose down
@@ -259,6 +279,11 @@ if $force_init; then
     if [ `echo $leftoverVolumes | wc -w` -gt 0 ]; then
         docker volume rm $leftoverVolumes
     fi
+
+    echo == Bringing up Celestia Devnet
+    docker-compose up -d da
+    wait_up http://localhost:26659/header/1
+    export CELESTIA_NODE_AUTH_TOKEN="$(docker exec nitro-testnode-da-1 celestia bridge auth admin --node.store /bridge)"
 
     echo == Generating l1 keys
     docker-compose run scripts write-accounts
@@ -306,7 +331,7 @@ if $force_init; then
     docker-compose run --entrypoint /usr/local/bin/deploy poster --l1conn ws://geth:8546 --l1keystore /home/user/l1keystore --sequencerAddress $sequenceraddress --ownerAddress $sequenceraddress --l1DeployAccount $sequenceraddress --l1deployment /config/deployment.json --authorizevalidators 10 --wasmrootpath /home/user/target/machines --l1chainid=$l1chainid --l2chainconfig /config/l2_chain_config.json --l2chainname arb-dev-test --l2chaininfo /config/deployed_chain_info.json
     docker-compose run --entrypoint sh poster -c "jq [.[]] /config/deployed_chain_info.json > /config/l2_chain_info.json"
     echo == Writing configs
-    docker-compose run scripts write-config
+    docker-compose run scripts write-config --authToken $CELESTIA_NODE_AUTH_TOKEN
 
     echo == Initializing redis
     docker-compose run scripts redis-init --redundancy $redundantsequencers
