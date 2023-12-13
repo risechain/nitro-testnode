@@ -220,6 +220,7 @@ function writeConfigs(argv: any) {
             "celestia-cfg": {
                 "enable": true,
                 "rpc": "http://da:26658",
+                "tendermint-rpc": "http://da:26657",
                 "namespace-id": "000008e5f679bf7116cb",
                 "auth-token": argv.authToken,
             }
