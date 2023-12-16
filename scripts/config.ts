@@ -223,6 +223,8 @@ function writeConfigs(argv: any) {
                 "tendermint-rpc": "http://da:26657",
                 "namespace-id": "000008e5f679bf7116cb",
                 "auth-token": argv.authToken,
+                "app-grpc": "localhost:9090",
+                "blobstream0address": argv.blobstreamAddress,
             }
         },
         "persistent": {
