@@ -283,6 +283,10 @@ if $force_init; then
         docker volume rm $leftoverVolumes
     fi
 
+    echo == Bringing up Celestia Devnet
+    docker-compose up -d da
+    wait_up http://localhost:26659/header/1
+    export CELESTIA_NODE_AUTH_TOKEN="$(docker exec nitro-testnode_da_1 celestia bridge auth admin --node.store  ${NODE_PATH})"
 
 
     echo == Generating l1 keys
