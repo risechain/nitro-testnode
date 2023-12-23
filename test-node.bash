@@ -5,6 +5,8 @@ set -e
 NITRO_NODE_VERSION=offchainlabs/nitro-node:v2.1.1-e9d8842-dev
 BLOCKSCOUT_VERSION=offchainlabs/blockscout:v1.0.0-c8db5b1
 NODE_PATH="/home/celestia/bridge/"
+APP_PATH="/home/celestia/.celestia-app"
+BLOBSTREAM_PATH="/opt/blobstream_address.txt"
 
 mydir=`dirname $0`
 cd "$mydir"
@@ -260,7 +262,7 @@ function wait_up {
     sleep 0.25
 
     ((i=i+1))
-    if [ "$i" -eq 300 ]; then
+    if [ "$i" -eq 600 ]; then
       echo " Timeout!" >&2
       exit 1
     fi
@@ -286,12 +288,14 @@ if $force_init; then
     wait_up http://localhost:26659/header/1
     export CELESTIA_NODE_AUTH_TOKEN="$(docker exec nitro-testnode_da_1 celestia bridge auth admin --node.store  ${NODE_PATH})"
 
+
     echo == Generating l1 keys
     docker-compose run scripts write-accounts
     docker-compose run --entrypoint sh geth -c "echo passphrase > /datadir/passphrase"
     docker-compose run --entrypoint sh geth -c "chown -R 1000:1000 /keystore"
     docker-compose run --entrypoint sh geth -c "chown -R 1000:1000 /config"
 
+    echo == Bringing up L1
     if $consensusclient; then
       echo == Writing configs
       docker-compose run scripts write-geth-genesis-config
@@ -319,20 +323,42 @@ if $force_init; then
     docker-compose run scripts send-l1 --ethamount 1000 --to validator --wait
     docker-compose run scripts send-l1 --ethamount 1000 --to sequencer --wait
 
+    echo == Funding Orchestrator and Relayer
+    docker-compose run scripts send-l1 --ethamount 1000 --to address_0x95359c3348e189ef7781546e6E13c80230fC9fB5 --wait
+    docker-compose run scripts send-l1 --ethamount 1000 --to address_0x966e6f22781EF6a6A82BBB4DB3df8E225DfD9488 --wait
+
     echo == create l1 traffic
     docker-compose run scripts send-l1 --ethamount 1000 --to user_l1user --wait
     docker-compose run scripts send-l1 --ethamount 0.0001 --from user_l1user --to user_l1user_b --wait --delay 500 --times 500 > /dev/null &
 
+    echo == Bringing up Celestia Devnet
+    docker-compose up -d da
+    wait_up http://localhost:26659/header/1
+    export CELESTIA_NODE_AUTH_TOKEN="$(docker exec nitro-testnode-da-1 celestia bridge auth admin --node.store  ${NODE_PATH})"
+
+    echo == Bringing up Blobstream Orchestrator
+    docker-compose up -d orchestrator
+
+    echo "Waiting for Blobstream Contracts"
+    sleep 100s
+    echo == Bringing up Blobstream Relayer
+    docker-compose up -d relayer
+    sleep 30s
+
     echo == Writing l2 chain config
     docker-compose run scripts write-l2-chain-config
 
+    # Wait for Relayer to have deployed the contract
+    sleep 10s
     echo == Deploying L2
     sequenceraddress=`docker-compose run scripts print-address --account sequencer | tail -n 1 | tr -d '\r\n'`
-
-    docker-compose run --entrypoint /usr/local/bin/deploy poster --l1conn ws://geth:8546 --l1keystore /home/user/l1keystore --sequencerAddress $sequenceraddress --ownerAddress $sequenceraddress --l1DeployAccount $sequenceraddress --l1deployment /config/deployment.json --authorizevalidators 10 --wasmrootpath /home/user/target/machines --l1chainid=$l1chainid --l2chainconfig /config/l2_chain_config.json --l2chainname arb-dev-test --l2chaininfo /config/deployed_chain_info.json
+    export BLOBSTREAM_ADDRESS="$(docker exec relayer cat ${BLOBSTREAM_PATH})"
+    echo == Blobstream Address: ${BLOBSTREAM_ADDRESS}
+    docker-compose run --entrypoint /usr/local/bin/deploy poster --l1conn ws://geth:8546 --l1keystore /home/user/l1keystore --sequencerAddress $sequenceraddress --ownerAddress $sequenceraddress --l1DeployAccount $sequenceraddress --l1deployment /config/deployment.json --authorizevalidators 10 --wasmrootpath /home/user/target/machines --l1chainid=$l1chainid --l2chainconfig /config/l2_chain_config.json --l2chainname arb-dev-test --l2chaininfo /config/deployed_chain_info.json --blobstreamAddress $BLOBSTREAM_ADDRESS
     docker-compose run --entrypoint sh poster -c "jq [.[]] /config/deployed_chain_info.json > /config/l2_chain_info.json"
     echo == Writing configs
-    docker-compose run scripts write-config --authToken $CELESTIA_NODE_AUTH_TOKEN
+    echo == Auth Token: ${CELESTIA_NODE_AUTH_TOKEN}
+    docker-compose run scripts write-config --authToken $CELESTIA_NODE_AUTH_TOKEN --blobstreamAddress $BLOBSTREAM_ADDRESS
 
     echo == Initializing redis
     docker-compose run scripts redis-init --redundancy $redundantsequencers
