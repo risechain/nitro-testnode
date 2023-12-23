@@ -58,6 +58,8 @@ do
     sleep 1s
 done
 
+echo "Waiting a bit to deploy Blobstream"
+
 # import keys to deployer
 /bin/blobstream deploy keys evm import ecdsa "${PRIVATE_KEY}" --evm.passphrase=123
 

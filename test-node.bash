@@ -335,9 +335,11 @@ if $force_init; then
     echo == Bringing up Blobstream Orchestrator
     docker-compose up -d orchestrator
 
+    echo "Waiting for Blobstream Contracts"
+    sleep 100s
     echo == Bringing up Blobstream Relayer
     docker-compose up -d relayer
-
+    sleep 30s
 
     echo == Writing l2 chain config
     docker-compose run scripts write-l2-chain-config
