@@ -231,6 +231,7 @@ function writeConfigs(argv: any) {
                 "auth-token": argv.authToken,
                 "app-grpc": "da:9090",
                 "blobstream-address": argv.blobstreamAddress,
+                "block-drift": 150,
             }
         },
         "persistent": {
