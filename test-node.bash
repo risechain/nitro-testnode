@@ -340,16 +340,16 @@ if $force_init; then
     docker-compose up -d orchestrator
 
     echo "Waiting for Blobstream Contracts"
-    sleep 100s
+    sleep 100
     echo == Bringing up Blobstream Relayer
     docker-compose up -d relayer
-    sleep 30s
+    sleep 30
 
     echo == Writing l2 chain config
     docker-compose run scripts write-l2-chain-config
 
     # Wait for Relayer to have deployed the contract
-    sleep 10s
+    sleep 10
     echo == Deploying L2
     sequenceraddress=`docker-compose run scripts print-address --account sequencer | tail -n 1 | tr -d '\r\n'`
     export BLOBSTREAM_ADDRESS="$(docker exec relayer cat ${BLOBSTREAM_PATH})"
