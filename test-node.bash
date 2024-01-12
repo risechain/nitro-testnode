@@ -286,7 +286,7 @@ if $force_init; then
     echo == Bringing up Celestia Devnet
     docker-compose up -d da
     wait_up http://localhost:26659/header/1
-    export CELESTIA_NODE_AUTH_TOKEN="$(docker exec nitro-testnode_da_1 celestia bridge auth admin --node.store  ${NODE_PATH})"
+    export CELESTIA_NODE_AUTH_TOKEN="$(docker exec da-celestia celestia bridge auth admin --node.store  ${NODE_PATH})"
 
 
     echo == Generating l1 keys
@@ -334,22 +334,22 @@ if $force_init; then
     echo == Bringing up Celestia Devnet
     docker-compose up -d da
     wait_up http://localhost:26659/header/1
-    export CELESTIA_NODE_AUTH_TOKEN="$(docker exec nitro-testnode-da-1 celestia bridge auth admin --node.store  ${NODE_PATH})"
+    export CELESTIA_NODE_AUTH_TOKEN="$(docker exec da-celestia celestia bridge auth admin --node.store  ${NODE_PATH})"
 
     echo == Bringing up Blobstream Orchestrator
     docker-compose up -d orchestrator
 
     echo "Waiting for Blobstream Contracts"
-    sleep 100s
+    sleep 100
     echo == Bringing up Blobstream Relayer
     docker-compose up -d relayer
-    sleep 30s
+    sleep 30
 
     echo == Writing l2 chain config
     docker-compose run scripts write-l2-chain-config
 
     # Wait for Relayer to have deployed the contract
-    sleep 10s
+    sleep 10
     echo == Deploying L2
     sequenceraddress=`docker-compose run scripts print-address --account sequencer | tail -n 1 | tr -d '\r\n'`
     export BLOBSTREAM_ADDRESS="$(docker exec relayer cat ${BLOBSTREAM_PATH})"
