@@ -4,7 +4,10 @@ set -e
 
 NITRO_NODE_VERSION=offchainlabs/nitro-node:v2.1.1-e9d8842-dev
 BLOCKSCOUT_VERSION=offchainlabs/blockscout:v1.0.0-c8db5b1
-NODE_PATH="/home/celestia/bridge/"
+# NODE_PATH="/home/celestia/bridge/"
+NODE_PATH="/home/celestia/.celestia-light-mocha-4/"
+# Address: celestia1z76rfc2ngva7punhpv8sqarlj3jjtdw58x2zr6
+export CELESTIA_NODE_AUTH_TOKEN=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJBbGxvdyI6WyJwdWJsaWMiLCJyZWFkIiwid3JpdGUiLCJhZG1pbiJdfQ.nkEgLKyWJzRbk_KBitwLArYMRLhic00LLnYFpTgxlK0
 
 mydir=`dirname $0`
 cd "$mydir"
@@ -281,10 +284,12 @@ if $force_init; then
         docker volume rm $leftoverVolumes
     fi
 
-    echo == Bringing up Celestia Devnet
-    docker-compose up -d da
-    wait_up http://localhost:26659/header/1
-    export CELESTIA_NODE_AUTH_TOKEN="$(docker exec nitro-testnode_da_1 celestia bridge auth admin --node.store  ${NODE_PATH})"
+    # We use another vm to run celestia testnet node, so just comment these lines bellow
+    # echo == Bringing up Celestia Devnet
+    # docker-compose up -d da
+    # wait_up http://localhost:26659/header/1
+    # export CELESTIA_NODE_AUTH_TOKEN="$(docker exec nitro-testnode_da_1 celestia bridge auth admin --node.store  ${NODE_PATH})"
+    # export CELESTIA_NODE_AUTH_TOKEN="$(docker exec celestia-da celestia light auth admin --node.store  ${NODE_PATH})"
 
     echo == Generating l1 keys
     docker-compose run scripts write-accounts

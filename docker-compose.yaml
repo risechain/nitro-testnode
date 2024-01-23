@@ -1,18 +1,18 @@
 version: "3.9"
 services:
-  da:
-    platform: linux/x86_64
-    image: "ghcr.io/rollkit/local-celestia-devnet:v0.12.1"
-    ports:
-      - "26657:26657"
-      - "26658:26658"
-      - "26659:26659"
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:26659/header/1"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
+  # da:
+  #   platform: linux/x86_64
+  #   image: "ghcr.io/rollkit/local-celestia-devnet:v0.12.1"
+  #   ports:
+  #     - "26657:26657"
+  #     - "26658:26658"
+  #     - "26659:26659"
+  #   healthcheck:
+  #     test: ["CMD", "curl", "-f", "http://localhost:26659/header/1"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+  #     start_period: 30s
   blockscout:
     depends_on:
       - postgres
@@ -40,7 +40,7 @@ services:
         DATABASE_URL: postgresql://postgres:@postgres:5432/blockscout
         ECTO_USE_SSL: "false"
     ports:
-      - "127.0.0.1:4000:4000"
+      - "4000:4000"
 
   postgres:
     image: postgres:13.6
@@ -166,9 +166,9 @@ services:
     pid: host # allow debugging
     image: nitro-node-dev-testnode
     ports:
-      - "127.0.0.1:8547:8547"
-      - "127.0.0.1:8548:8548"
-      - "127.0.0.1:9642:9642"
+      - "8547:8547"
+      - "8548:8548"
+      - "9642:9642"
     volumes:
       - "seqdata:/home/user/.arbitrum/local/nitro"
       - "config:/config"

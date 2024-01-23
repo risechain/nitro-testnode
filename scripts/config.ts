@@ -219,9 +219,9 @@ function writeConfigs(argv: any) {
             },
             "celestia-cfg": {
                 "enable": true,
-                "rpc": "http://da:26658",
-                "tendermint-rpc": "http://da:26657",
-                "namespace-id": "000008e5f679bf7116cb",
+                "rpc": "http://172.31.25.45:26658",
+                "tendermint-rpc": "http://rpc-mocha.pops.one:26657",
+                "namespace-id": "00220886b5184a07a6a3",
                 "auth-token": argv.authToken,
             }
         },
