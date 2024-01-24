@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+# docker compose run --rm -v ${PWD}/out/:/out --entrypoint sh scripts -c 'tar -zcvf /out/config.tar.gz /config'
+
 set -e
 
 NITRO_NODE_VERSION=offchainlabs/nitro-node:v2.1.1-e9d8842-dev
@@ -8,6 +10,7 @@ BLOCKSCOUT_VERSION=offchainlabs/blockscout:v1.0.0-c8db5b1
 NODE_PATH="/home/celestia/.celestia-light-mocha-4/"
 # Address: celestia1z76rfc2ngva7punhpv8sqarlj3jjtdw58x2zr6
 export CELESTIA_NODE_AUTH_TOKEN=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJBbGxvdyI6WyJwdWJsaWMiLCJyZWFkIiwid3JpdGUiLCJhZG1pbiJdfQ.nkEgLKyWJzRbk_KBitwLArYMRLhic00LLnYFpTgxlK0
+DEFAULT_FUND_AMOUNT=0.2
 
 mydir=`dirname $0`
 cd "$mydir"
@@ -44,9 +47,11 @@ consensusclient=false
 redundantsequencers=0
 dev_build_nitro=false
 dev_build_blockscout=false
+fund_l1=false
+fund_l1_amount=$DEFAULT_FUND_AMOUNT
 batchposters=1
-devprivkey=b6b15c8cb491557369f3c7d2c287b053eb229daa9c22138887752191c9520659
-l1chainid=1337
+devprivkey=2fc338a5ddd5f1fef594cf904225f5cfc77602339a4dd16864b53144a2de38fc
+l1chainid=11155111
 while [[ $# -gt 0 ]]; do
     case $1 in
         --init)
@@ -98,6 +103,17 @@ while [[ $# -gt 0 ]]; do
         --no-run)
             run=false
             shift
+            ;;
+        --fund)
+            fund_l1=true
+            shift
+            if [[ $# -gt 0 && $1 != -* ]]; then
+                # If there is argument after --fund
+                while [[ $# -gt 0 && $1 != -* ]]; do
+                    fund_l1_amount=$1
+                    shift
+                done
+            fi
             ;;
         --detach)
             detach=true
@@ -293,40 +309,45 @@ if $force_init; then
 
     echo == Generating l1 keys
     docker-compose run scripts write-accounts
-    docker-compose run --entrypoint sh geth -c "echo passphrase > /datadir/passphrase"
-    docker-compose run --entrypoint sh geth -c "chown -R 1000:1000 /keystore"
-    docker-compose run --entrypoint sh geth -c "chown -R 1000:1000 /config"
+    # docker-compose run --entrypoint sh geth -c "echo passphrase > /datadir/passphrase"
+    # Change folder permission to `user`, which is runtime user in arbitrum service images
+    docker-compose run --entrypoint sh scripts -c "chown -R 1000:1000 /home/user/l1keystore"
+    docker-compose run --entrypoint sh scripts -c "chown -R 1000:1000 /config"
 
-    if $consensusclient; then
-      echo == Writing configs
-      docker-compose run scripts write-geth-genesis-config
+    # if $consensusclient; then
+    #   echo == Writing configs
+    #   docker-compose run scripts write-geth-genesis-config
 
-      echo == Writing configs
-      docker-compose run scripts write-prysm-config
+    #   echo == Writing configs
+    #   docker-compose run scripts write-prysm-config
 
-      echo == Initializing go-ethereum genesis configuration
-      docker-compose run geth init --datadir /datadir/ /config/geth_genesis.json
+    #   echo == Initializing go-ethereum genesis configuration
+    #   docker-compose run geth init --datadir /datadir/ /config/geth_genesis.json
 
-      echo == Starting geth
-      docker-compose up -d geth
+    #   echo == Starting geth
+    #   docker-compose up -d geth
 
-      echo == Creating prysm genesis
-      docker-compose up create_beacon_chain_genesis
+    #   echo == Creating prysm genesis
+    #   docker-compose up create_beacon_chain_genesis
 
-      echo == Running prysm
-      docker-compose up -d prysm_beacon_chain
-      docker-compose up -d prysm_validator
+    #   echo == Running prysm
+    #   docker-compose up -d prysm_beacon_chain
+    #   docker-compose up -d prysm_validator
+    # else
+    #   docker-compose up -d geth
+    # fi
+
+    if $fund_l1; then
+        echo == Funding validator and sequencer with $fund_l1_amount eth.
+        docker-compose run scripts send-l1 --ethamount $fund_l1_amount --to validator --wait
+        docker-compose run scripts send-l1 --ethamount $fund_l1_amount --to sequencer --wait
     else
-      docker-compose up -d geth
+        echo == Skip funding validator and sequencer
     fi
 
-    echo == Funding validator and sequencer
-    docker-compose run scripts send-l1 --ethamount 1000 --to validator --wait
-    docker-compose run scripts send-l1 --ethamount 1000 --to sequencer --wait
-
-    echo == create l1 traffic
-    docker-compose run scripts send-l1 --ethamount 1000 --to user_l1user --wait
-    docker-compose run scripts send-l1 --ethamount 0.0001 --from user_l1user --to user_l1user_b --wait --delay 500 --times 500 > /dev/null &
+    # echo == create l1 traffic
+    # docker-compose run scripts send-l1 --ethamount 1000 --to user_l1user --wait
+    # docker-compose run scripts send-l1 --ethamount 0.0001 --from user_l1user --to user_l1user_b --wait --delay 500 --times 500 > /dev/null &
 
     echo == Writing l2 chain config
     docker-compose run scripts write-l2-chain-config
@@ -334,7 +355,7 @@ if $force_init; then
     echo == Deploying L2
     sequenceraddress=`docker-compose run scripts print-address --account sequencer | tail -n 1 | tr -d '\r\n'`
 
-    docker-compose run --entrypoint /usr/local/bin/deploy poster --l1conn ws://geth:8546 --l1keystore /home/user/l1keystore --sequencerAddress $sequenceraddress --ownerAddress $sequenceraddress --l1DeployAccount $sequenceraddress --l1deployment /config/deployment.json --authorizevalidators 10 --wasmrootpath /home/user/target/machines --l1chainid=$l1chainid --l2chainconfig /config/l2_chain_config.json --l2chainname arb-dev-test --l2chaininfo /config/deployed_chain_info.json
+    docker-compose run --entrypoint /usr/local/bin/deploy poster --l1conn wss://eth-sepolia.g.alchemy.com/v2/bBNJIqqDrP8CmcqD1fhG2YMgXsr-xr6Y --l1keystore /home/user/l1keystore --sequencerAddress $sequenceraddress --ownerAddress $sequenceraddress --l1DeployAccount $sequenceraddress --l1deployment /config/deployment.json --authorizevalidators 10 --wasmrootpath /home/user/target/machines --l1chainid=$l1chainid --l2chainconfig /config/l2_chain_config.json --l2chainname arb-dev-test --l2chaininfo /config/deployed_chain_info.json
     docker-compose run --entrypoint sh poster -c "jq [.[]] /config/deployed_chain_info.json > /config/l2_chain_info.json"
     echo == Writing configs
     docker-compose run scripts write-config --authToken $CELESTIA_NODE_AUTH_TOKEN
@@ -344,8 +365,8 @@ if $force_init; then
 
     echo == Funding l2 funnel and dev key
     docker-compose up -d $INITIAL_SEQ_NODES
-    docker-compose run scripts bridge-funds --ethamount 100000 --wait
-    docker-compose run scripts bridge-funds --ethamount 1000 --wait --from "key_0x$devprivkey"
+    docker-compose run scripts bridge-funds --ethamount 5 --wait
+    docker-compose run scripts bridge-funds --ethamount 1 --wait --from "key_0x$devprivkey"
 
     if $tokenbridge; then
         echo == Deploying token bridge
