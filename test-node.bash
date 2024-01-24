@@ -4,6 +4,7 @@ set -e
 
 NITRO_NODE_VERSION=offchainlabs/nitro-node:v2.2.2-8f33fea-dev
 BLOCKSCOUT_VERSION=offchainlabs/blockscout:v1.0.0-c8db5b1
+NODE_PATH="/home/celestia/bridge/"
 
 mydir=`dirname $0`
 cd "$mydir"
@@ -282,6 +283,26 @@ if $force_build; then
     docker compose build --no-rm $NODES scripts
 fi
 
+# Helper method that waits for a given URL to be up. Can't use
+# cURL's built-in retry logic because connection reset errors
+# are ignored unless you're using a very recent version of cURL
+function wait_up {
+  echo -n "Waiting for $1 to come up..."
+  i=0
+  until curl -s -f -o /dev/null "$1"
+  do
+    echo -n .
+    sleep 0.25
+
+    ((i=i+1))
+    if [ "$i" -eq 300 ]; then
+      echo " Timeout!" >&2
+      exit 1
+    fi
+  done
+  echo "Done!"
+}
+
 if $force_init; then
     echo == Removing old data..
     docker compose down
@@ -295,6 +316,10 @@ if $force_init; then
         docker volume rm $leftoverVolumes
     fi
 
+    echo == Bringing up Celestia Devnet
+    docker-compose up -d da
+    wait_up http://localhost:26659/header/1
+    export CELESTIA_NODE_AUTH_TOKEN="$(docker exec nitro-testnode-da-1 celestia bridge auth admin --node.store ${NODE_PATH})"
     echo == Generating l1 keys
     docker compose run scripts write-accounts
     docker compose run --entrypoint sh geth -c "echo passphrase > /datadir/passphrase"
@@ -342,10 +367,10 @@ if $force_init; then
 
     if $simple; then
         echo == Writing configs
-        docker compose run scripts write-config --simple
+        docker compose run scripts write-config --simple --authToken $CELESTIA_NODE_AUTH_TOKEN
     else
         echo == Writing configs
-        docker compose run scripts write-config
+        docker compose run scripts write-config --authToken $CELESTIA_NODE_AUTH_TOKEN
 
         echo == Initializing redis
         docker compose up --wait redis
