@@ -80,6 +80,21 @@ export function namedAddress(
   return namedAccount(name, threadId).address;
 }
 
+export function namedAccountFull(
+  name: string,
+  threadId?: number | undefined
+): string {
+  if (name.startsWith("address_")) {
+    return name.substring(8);
+  }
+  if (name == "random") {
+    return "0x" + crypto.randomBytes(20).toString("hex");
+  }
+  const account = namedAccount(name, threadId);
+  const result = `Address: ${account.address};\nPrivate Key: ${account.privateKey}`;
+  return result;
+}
+
 export const namedAccountHelpString =
   "Valid account names:\n" +
   "  funnel | sequencer | validator - known keys\n" +
@@ -95,6 +110,10 @@ async function handlePrintAddress(argv: any, threadId: number) {
   console.log(namedAddress(argv.account, threadId));
 }
 
+async function handlePrintAccountFull(argv: any, threadId: number) {
+  console.log(namedAccountFull(argv.account, threadId));
+}
+
 export const printAddressCommand = {
   command: "print-address",
   describe: "prints the requested address",
@@ -107,6 +126,21 @@ export const printAddressCommand = {
   },
   handler: async (argv: any) => {
     await runStress(argv, handlePrintAddress);
+  },
+};
+
+export const printAccountCommand = {
+  command: "print-account",
+  describe: "prints the requested address and private key",
+  builder: {
+    account: {
+      string: true,
+      describe: "address (see general help)",
+      default: "funnel",
+    },
+  },
+  handler: async (argv: any) => {
+    await runStress(argv, handlePrintAccountFull);
   },
 };
 

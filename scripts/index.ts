@@ -5,6 +5,7 @@ import { redisReadCommand, redisInitCommand } from "./redis";
 import { writeConfigCommand, writeGethGenesisCommand, writePrysmCommand, writeL2ChainConfigCommand, writeL3ChainConfigCommand } from "./config";
 import {
   printAddressCommand,
+  printAccountCommand,
   namedAccountHelpString,
   writeAccountsCommand,
 } from "./accounts";
@@ -21,7 +22,7 @@ async function main() {
   await Yargs(hideBin(process.argv))
     .options({
       redisUrl: { string: true, default: "redis://redis:6379" },
-      l1url: { string: true, default: "wss://eth-sepolia.g.alchemy.com/v2/bBNJIqqDrP8CmcqD1fhG2YMgXsr-xr6Y" },
+      l1url: { string: true, default: "wss://distinguished-greatest-mountain.ethereum-sepolia.quiknode.pro/58b6176715dcedd8df2d8064bdd88cee5f8ad16f" },
       l2url: { string: true, default: "ws://sequencer:8548" },
       l3url: { string: true, default: "ws://l3node:3348" },
       validationNodeUrl: { string: true, default: "ws://validation_node:8549" },
@@ -42,6 +43,7 @@ async function main() {
     .command(writePrysmCommand)
     .command(writeAccountsCommand)
     .command(printAddressCommand)
+    .command(printAccountCommand)
     .command(redisReadCommand)
     .command(redisInitCommand)
     .strict()

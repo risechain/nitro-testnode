@@ -345,7 +345,7 @@ services:
     build: tokenbridge/
     environment:
       - ARB_URL=http://sequencer:8547
-      - ETH_URL=http://geth:8545
+      - ETH_URL=https://distinguished-greatest-mountain.ethereum-sepolia.quiknode.pro/58b6176715dcedd8df2d8064bdd88cee5f8ad16f
     volumes:
       - "sdk-data:/workspace"
       - /var/run/docker.sock:/var/run/docker.sock

@@ -309,7 +309,7 @@ if $force_init; then
 
     echo == Generating l1 keys
     docker-compose run scripts write-accounts
-    # docker-compose run --entrypoint sh geth -c "echo passphrase > /datadir/passphrase"
+    docker-compose run --entrypoint sh geth -c "echo passphrase > /datadir/passphrase"
     # Change folder permission to `user`, which is runtime user in arbitrum service images
     docker-compose run --entrypoint sh scripts -c "chown -R 1000:1000 /home/user/l1keystore"
     docker-compose run --entrypoint sh scripts -c "chown -R 1000:1000 /config"
@@ -355,7 +355,7 @@ if $force_init; then
     echo == Deploying L2
     sequenceraddress=`docker-compose run scripts print-address --account sequencer | tail -n 1 | tr -d '\r\n'`
 
-    docker-compose run --entrypoint /usr/local/bin/deploy poster --l1conn wss://eth-sepolia.g.alchemy.com/v2/bBNJIqqDrP8CmcqD1fhG2YMgXsr-xr6Y --l1keystore /home/user/l1keystore --sequencerAddress $sequenceraddress --ownerAddress $sequenceraddress --l1DeployAccount $sequenceraddress --l1deployment /config/deployment.json --authorizevalidators 10 --wasmrootpath /home/user/target/machines --l1chainid=$l1chainid --l2chainconfig /config/l2_chain_config.json --l2chainname arb-dev-test --l2chaininfo /config/deployed_chain_info.json
+    docker-compose run --entrypoint /usr/local/bin/deploy poster --l1conn wss://distinguished-greatest-mountain.ethereum-sepolia.quiknode.pro/58b6176715dcedd8df2d8064bdd88cee5f8ad16f --l1keystore /home/user/l1keystore --sequencerAddress $sequenceraddress --ownerAddress $sequenceraddress --l1DeployAccount $sequenceraddress --l1deployment /config/deployment.json --authorizevalidators 10 --wasmrootpath /home/user/target/machines --l1chainid=$l1chainid --l2chainconfig /config/l2_chain_config.json --l2chainname arb-dev-test --l2chaininfo /config/deployed_chain_info.json
     docker-compose run --entrypoint sh poster -c "jq [.[]] /config/deployed_chain_info.json > /config/l2_chain_info.json"
     echo == Writing configs
     docker-compose run scripts write-config --authToken $CELESTIA_NODE_AUTH_TOKEN
@@ -365,8 +365,8 @@ if $force_init; then
 
     echo == Funding l2 funnel and dev key
     docker-compose up -d $INITIAL_SEQ_NODES
-    docker-compose run scripts bridge-funds --ethamount 5 --wait
-    docker-compose run scripts bridge-funds --ethamount 1 --wait --from "key_0x$devprivkey"
+    docker-compose run scripts bridge-funds --ethamount 1 --wait
+    docker-compose run scripts bridge-funds --ethamount 3 --wait --from "key_0x$devprivkey"
 
     if $tokenbridge; then
         echo == Deploying token bridge
