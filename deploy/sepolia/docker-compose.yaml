@@ -1,36 +1,46 @@
 version: "3.9"
 services:
-  generate_jwt_hex:
-    image: debian:latest
+  generate_config:
+    image: debian
     volumes:
       - "config:/config"
-    entrypoint:
-      
-    command: 
-
-      if [ ! -f /config/jwt.hex ]; then
-        openssl rand -hex 32 | tr -d "\n" > "/config/jwt.hex"
-      fi
+      - ./generate_jwt_hex.sh:/generate_jwt_hex.sh
+    entrypoint: ["/bin/sh", "/generate_jwt_hex.sh"]
+    # command: 
+    #   - /generate_jwt_hex.sh
+      # openssl rand -hex 32 | tr -d "\n" > "jwt.hex"
 
   geth:
-    image: ethereum/client-go:v1.10.23
+    image: ethereum/client-go:v1.13.11
+    restart: unless-stopped
     ports:
-      - "127.0.0.1:8545:8545"
-      - "127.0.0.1:8551:8551"
-      - "127.0.0.1:8546:8546"
-      - "127.0.0.1:30303:30303"
+      - "8545:8545"
+      # - "8551:8551"
+      - "8546:8546"
+      - "30303:30303/tcp"
+      - "30303:30303/udp"
     volumes:
-      - "l1data:/datadir"
+      - "${DATADIR}/l1data:/datadir"
       - "config:/config"
     command:
       - --sepolia
       - --http
-      - --http.api eth,net,engine,admin
+      - --http.api=eth,net,engine,admin
+      - --http.addr=0.0.0.0
+      - --http.vhosts=*
+      - --authrpc.addr=geth
+      - --authrpc.vhosts=*
       - --authrpc.jwtsecret=/config/jwt.hex
-      - --datadir /datadir
+      - --datadir=/datadir
+      - --cache=8192
     depends_on:
-      generate_jwt_hex:
+      generate_config:
         condition: service_completed_successfully
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 8G
 
   # Runs a Prysm beacon chain from a specified genesis state created in the previous step
   # and connects to go-ethereum in the same network as the execution client.
@@ -38,8 +48,10 @@ services:
   # proposed via the validators attached to the beacon node.
   prysm_beacon_chain:
     image: "gcr.io/prysmaticlabs/prysm/beacon-chain:v4.2.0"
+    restart: unless-stopped
     command:
       - --sepolia
+      - --accept-terms-of-use
       - --execution-endpoint=http://geth:8551
       - --jwt-secret=/config/jwt.hex
       - --checkpoint-sync-url=https://sepolia.beaconstate.info
@@ -48,26 +60,20 @@ services:
     depends_on:
       geth:
         condition: service_started
-      generate_jwt_hex:
+      generate_config:
         condition: service_completed_successfully
     ports:
-      - "127.0.0.1:5000:5000"
-      - "127.0.0.1:3500:3500"
+      - "5000:5000"
+      - "3500:3500"
     volumes:
-      - "consensus:/consensus"
+      - "${DATADIR}/consensus:/consensus"
       - "config:/config"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 2G
 
 volumes:
   config:
-  l1data:
-    driver: local
-    driver_opts:
-      o: bind
-      type: none 
-      device: /mnt/disks/data/docker/l1data
-  consensus:
-    driver: local
-    driver_opts:
-      o: bind
-      type: none 
-      device: /mnt/disks/data/docker/consensus
+
