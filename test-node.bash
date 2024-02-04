@@ -1,10 +1,20 @@
 #!/usr/bin/env bash
 
+# docker compose run --rm -v ${PWD}/out/:/out --entrypoint sh scripts -c 'tar -zcvf /out/config.tar.gz /config'
+
 set -e
 
 NITRO_NODE_VERSION=offchainlabs/nitro-node:v2.2.2-8f33fea-dev
 BLOCKSCOUT_VERSION=offchainlabs/blockscout:v1.0.0-c8db5b1
-NODE_PATH="/home/celestia/bridge/"
+# NODE_PATH="/home/celestia/bridge/"
+NODE_PATH="/home/celestia/.celestia-light-mocha-4/"
+# [Update this]
+export L1_WS="wss://distinguished-greatest-mountain.ethereum-sepolia.quiknode.pro/58b6176715dcedd8df2d8064bdd88cee5f8ad16f"
+export DA_RPC="http://172.31.25.45:26658"
+export DA_TENDERMINT_RPC="http://rpc-mocha.pops.one:26657"
+# Address: celestia1z76rfc2ngva7punhpv8sqarlj3jjtdw58x2zr6
+export CELESTIA_NODE_AUTH_TOKEN=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJBbGxvdyI6WyJwdWJsaWMiLCJyZWFkIiwid3JpdGUiLCJhZG1pbiJdfQ.nkEgLKyWJzRbk_KBitwLArYMRLhic00LLnYFpTgxlK0
+DEFAULT_FUND_AMOUNT=0.2
 
 mydir=`dirname $0`
 cd "$mydir"
@@ -28,7 +38,9 @@ force_build=false
 validate=false
 detach=false
 blockscout=false
-tokenbridge=false
+tokenbridge=true
+local_da=false
+local_l1=false
 l3node=false
 consensusclient=false
 redundantsequencers=0
@@ -36,9 +48,11 @@ dev_build_nitro=false
 dev_build_blockscout=false
 l3_custom_fee_token=false
 l3_token_bridge=false
+fund_l1=false
+fund_l1_amount=$DEFAULT_FUND_AMOUNT
 batchposters=1
-devprivkey=b6b15c8cb491557369f3c7d2c287b053eb229daa9c22138887752191c9520659
-l1chainid=1337
+devprivkey=2fc338a5ddd5f1fef594cf904225f5cfc77602339a4dd16864b53144a2de38fc
+l1chainid=11155111
 simple=true
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -94,9 +108,33 @@ while [[ $# -gt 0 ]]; do
             tokenbridge=false
             shift
             ;;
+        --local-da)
+            NODE_PATH="/home/celestia/bridge/"
+            export DA_TENDERMINT_RPC="http://da:26658"
+            export DA_RPC="http://da:26658"
+            local_da=true
+            shift
+            ;;
+        --local-l1)
+            l1chainid=1337
+            export L1_WS=ws://geth:8546
+            local_l1=true
+            shift
+            ;;
         --no-run)
             run=false
             shift
+            ;;
+        --fund)
+            fund_l1=true
+            shift
+            if [[ $# -gt 0 && $1 != -* ]]; then
+                # If there is argument after --fund
+                while [[ $# -gt 0 && $1 != -* ]]; do
+                    fund_l1_amount=$1
+                    shift
+                done
+            fi
             ;;
         --detach)
             detach=true
@@ -316,51 +354,65 @@ if $force_init; then
         docker volume rm $leftoverVolumes
     fi
 
-    echo == Bringing up Celestia Devnet
-    docker-compose up -d da
-    wait_up http://localhost:26659/header/1
-    export CELESTIA_NODE_AUTH_TOKEN="$(docker exec nitro-testnode-da-1 celestia bridge auth admin --node.store ${NODE_PATH})"
-    echo == Generating l1 keys
-    docker compose run scripts write-accounts
-    docker compose run --entrypoint sh geth -c "echo passphrase > /datadir/passphrase"
-    docker compose run --entrypoint sh geth -c "chown -R 1000:1000 /keystore"
-    docker compose run --entrypoint sh geth -c "chown -R 1000:1000 /config"
-
-    if $consensusclient; then
-      echo == Writing configs
-      docker compose run scripts write-geth-genesis-config
-
-      echo == Writing configs
-      docker compose run scripts write-prysm-config
-
-      echo == Initializing go-ethereum genesis configuration
-      docker compose run geth init --datadir /datadir/ /config/geth_genesis.json
-
-      echo == Starting geth
-      docker compose up --wait geth
-
-      echo == Creating prysm genesis
-      docker compose up create_beacon_chain_genesis
-
-      echo == Running prysm
-      docker compose up --wait prysm_beacon_chain
-      docker compose up --wait prysm_validator
-    else
-      docker compose up --wait geth
+    # We use another vm to run celestia testnet node, so just comment these lines bellow
+    if $local_da; then
+        echo == Bringing up Celestia Devnet
+        docker-compose up -d da
+        wait_up http://localhost:26659/header/1
+        export CELESTIA_NODE_AUTH_TOKEN="$(docker-compose exec da celestia bridge auth admin --node.store ${NODE_PATH})"
     fi
 
-    echo == Funding validator and sequencer
-    docker compose run scripts send-l1 --ethamount 1000 --to validator --wait
-    docker compose run scripts send-l1 --ethamount 1000 --to sequencer --wait
+    if $local_l1; then
+        echo == Generating l1 keys
+        docker compose run scripts write-accounts
+        docker compose run --entrypoint sh geth -c "echo passphrase > /datadir/passphrase"
+        docker compose run --entrypoint sh geth -c "chown -R 1000:1000 /keystore"
+        docker compose run --entrypoint sh geth -c "chown -R 1000:1000 /config"
 
-    echo == create l1 traffic
-    docker compose run scripts send-l1 --ethamount 1000 --to user_l1user --wait
-    docker compose run scripts send-l1 --ethamount 0.0001 --from user_l1user --to user_l1user_b --wait --delay 500 --times 1000000 > /dev/null &
+        if $consensusclient; then
+            echo == Writing configs
+            docker compose run scripts write-geth-genesis-config
+
+            echo == Writing configs
+            docker compose run scripts write-prysm-config
+
+            echo == Initializing go-ethereum genesis configuration
+            docker compose run geth init --datadir /datadir/ /config/geth_genesis.json
+
+            echo == Starting geth
+            docker compose up --wait geth
+
+            echo == Creating prysm genesis
+            docker compose up create_beacon_chain_genesis
+
+            echo == Running prysm
+            docker compose up --wait prysm_beacon_chain
+            docker compose up --wait prysm_validator
+        else
+            docker compose up --wait geth
+        fi
+    fi
+
+    if $fund_l1; then
+        echo == Funding validator and sequencer with $fund_l1_amount eth.
+        docker-compose run --rm scripts send-l1 --ethamount $fund_l1_amount --to validator --wait --l1url $L1_WS
+        docker-compose run --rm scripts send-l1 --ethamount $fund_l1_amount --to sequencer --wait --l1url $L1_WS
+        docker-compose run --rm scripts send-l1 --ethamount $fund_l1_amount --to "key_0x$devprivkey" --wait --l1url $L1_WS
+    else
+        echo == Skip funding validator and sequencer
+    fi
+
+    if $local_l1; then
+        echo == create l1 traffic
+        docker-compose run --rm scripts send-l1 --ethamount 1000 --to user_l1user --wait --l1url $L1_WS
+        docker-compose run --rm scripts send-l1 --ethamount 0.0001 --from user_l1user --to user_l1user_b --wait --delay 500 --times 500 --l1url $L1_WS > /dev/null &
+    fi
 
     echo == Writing l2 chain config
     docker compose run scripts write-l2-chain-config
 
-    sequenceraddress=`docker compose run scripts print-address --account sequencer | tail -n 1 | tr -d '\r\n'`
+    echo == Deploying L2
+    sequenceraddress=`docker-compose run --rm scripts print-address --account sequencer | tail -n 1 | tr -d '\r\n'`
 
     docker compose run --entrypoint /usr/local/bin/deploy sequencer --l1conn ws://geth:8546 --l1keystore /home/user/l1keystore --sequencerAddress $sequenceraddress --ownerAddress $sequenceraddress --l1DeployAccount $sequenceraddress --l1deployment /config/deployment.json --authorizevalidators 10 --wasmrootpath /home/user/target/machines --l1chainid=$l1chainid --l2chainconfig /config/l2_chain_config.json --l2chainname arb-dev-test --l2chaininfo /config/deployed_chain_info.json
     docker compose run --entrypoint sh sequencer -c "jq [.[]] /config/deployed_chain_info.json > /config/l2_chain_info.json"
@@ -378,9 +430,9 @@ if $force_init; then
     fi
 
     echo == Funding l2 funnel and dev key
-    docker compose up --wait $INITIAL_SEQ_NODES
-    docker compose run scripts bridge-funds --ethamount 100000 --wait
-    docker compose run scripts bridge-funds --ethamount 1000 --wait --from "key_0x$devprivkey"
+    docker-compose up --wait $INITIAL_SEQ_NODES
+    docker-compose run --rm scripts bridge-funds --ethamount 1 --wait --l1url $L1_WS
+    docker-compose run --rm scripts bridge-funds --ethamount 3 --wait --from "key_0x$devprivkey" --l1url $L1_WS
 
     if $tokenbridge; then
         echo == Deploying L1-L2 token bridge

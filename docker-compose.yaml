@@ -2,7 +2,7 @@ version: "3.9"
 services:
   da:
     platform: linux/x86_64
-    image: "ghcr.io/rollkit/local-celestia-devnet:v0.12.1"
+    image: "ghcr.io/rollkit/local-celestia-devnet:v0.12.3"
     ports:
       - "26657:26657"
       - "26658:26658"
@@ -13,6 +13,7 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
+
   blockscout:
     depends_on:
       - postgres
@@ -40,7 +41,7 @@ services:
         DATABASE_URL: postgresql://postgres:@postgres:5432/blockscout
         ECTO_USE_SSL: "false"
     ports:
-      - "127.0.0.1:4000:4000"
+      - "4000:4000"
 
   postgres:
     image: postgres:13.6
@@ -86,7 +87,7 @@ services:
       - --ws.addr=0.0.0.0
       - --ws.api=personal,eth,net,web3,debug,txpool
       - --allow-insecure-unlock
-      - --unlock=0x3f1Eae7D46d88F08fc2F8ed27FCb2AB183EB2d0E
+      - --unlock=0x14a64767a24A8aA82eCCF0B5839E16aA73caD666
       - --password=/datadir/passphrase
       - --authrpc.jwtsecret=/config/jwt.hex
       - --nodiscover
@@ -94,7 +95,7 @@ services:
       - --dev
       - --dev.period=1
       - --mine
-      - --miner.etherbase=0x3f1Eae7D46d88F08fc2F8ed27FCb2AB183EB2d0E
+      - --miner.etherbase=0x14a64767a24A8aA82eCCF0B5839E16aA73caD666
       - --gcmode=archive
 
   # Creates a genesis state for the beacon chain using a YAML configuration file and
@@ -166,9 +167,9 @@ services:
     pid: host # allow debugging
     image: nitro-node-dev-testnode
     ports:
-      - "127.0.0.1:8547:8547"
-      - "127.0.0.1:8548:8548"
-      - "127.0.0.1:9642:9642"
+      - "8547:8547"
+      - "8548:8548"
+      - "9642:9642"
     volumes:
       - "seqdata:/home/user/.arbitrum/local/nitro"
       - "l1keystore:/home/user/l1keystore"
@@ -342,7 +343,7 @@ services:
     build: tokenbridge/
     environment:
       - ARB_URL=http://sequencer:8547
-      - ETH_URL=http://geth:8545
+      - ETH_URL=https://distinguished-greatest-mountain.ethereum-sepolia.quiknode.pro/58b6176715dcedd8df2d8064bdd88cee5f8ad16f
     volumes:
       - "sdk-data:/workspace"
       - /var/run/docker.sock:/var/run/docker.sock
