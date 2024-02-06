@@ -225,7 +225,7 @@ function writeConfigs(argv: any) {
                 // "tendermint-rpc": "http://rpc-mocha.pops.one:26657",
                 "rpc": argv.daUrl,
                 "tendermint-rpc": argv.daTendermintRpc,
-                "namespace-id": "00220886b5184a07a6a3",
+                "namespace-id": "00230886b5184a07a6a3",
                 "auth-token": argv.authToken,
             },
         },

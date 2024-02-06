@@ -9,12 +9,15 @@ BLOCKSCOUT_VERSION=offchainlabs/blockscout:v1.0.0-c8db5b1
 # NODE_PATH="/home/celestia/bridge/"
 NODE_PATH="/home/celestia/.celestia-light-mocha-4/"
 # [Update this]
-export L1_WS="wss://distinguished-greatest-mountain.ethereum-sepolia.quiknode.pro/58b6176715dcedd8df2d8064bdd88cee5f8ad16f"
+# export L1_WS="wss://distinguished-greatest-mountain.ethereum-sepolia.quiknode.pro/58b6176715dcedd8df2d8064bdd88cee5f8ad16f"
+export L1_WS="wss://eth-sepolia.g.alchemy.com/v2/AYLT5e-_3mH-g3IM47rDmoMh88i17MhU"
+export L1_RPC="https://eth-sepolia.g.alchemy.com/v2/AYLT5e-_3mH-g3IM47rDmoMh88i17MhU"
 export DA_RPC="http://172.31.25.45:26658"
 export DA_TENDERMINT_RPC="http://rpc-mocha.pops.one:26657"
 # Address: celestia1z76rfc2ngva7punhpv8sqarlj3jjtdw58x2zr6
 export CELESTIA_NODE_AUTH_TOKEN=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJBbGxvdyI6WyJwdWJsaWMiLCJyZWFkIiwid3JpdGUiLCJhZG1pbiJdfQ.nkEgLKyWJzRbk_KBitwLArYMRLhic00LLnYFpTgxlK0
-DEFAULT_FUND_AMOUNT=0.2
+DEFAULT_FUND_AMOUNT_L1=1
+DEFAULT_FUND_AMOUNT_L2=0.5
 
 mydir=`dirname $0`
 cd "$mydir"
@@ -48,8 +51,10 @@ dev_build_nitro=false
 dev_build_blockscout=false
 l3_custom_fee_token=false
 l3_token_bridge=false
-fund_l1=false
-fund_l1_amount=$DEFAULT_FUND_AMOUNT
+fund_l1=true
+fund_l1_amount=$DEFAULT_FUND_AMOUNT_L1
+fund_l2=true
+fund_l2_amount=$DEFAULT_FUND_AMOUNT_L2
 batchposters=1
 devprivkey=2fc338a5ddd5f1fef594cf904225f5cfc77602339a4dd16864b53144a2de38fc
 l1chainid=11155111
@@ -118,6 +123,7 @@ while [[ $# -gt 0 ]]; do
         --local-l1)
             l1chainid=1337
             export L1_WS=ws://geth:8546
+            export L1_RPC=http://geth:8545
             local_l1=true
             shift
             ;;
@@ -125,7 +131,7 @@ while [[ $# -gt 0 ]]; do
             run=false
             shift
             ;;
-        --fund)
+        --fund-l1)
             fund_l1=true
             shift
             if [[ $# -gt 0 && $1 != -* ]]; then
@@ -135,6 +141,25 @@ while [[ $# -gt 0 ]]; do
                     shift
                 done
             fi
+            ;;
+        --no-fund-l1)
+            fund_l1=false
+            shift
+            ;;
+        --fund-l2)
+            fund_l2=true
+            shift
+            if [[ $# -gt 0 && $1 != -* ]]; then
+                # If there is argument after --fund
+                while [[ $# -gt 0 && $1 != -* ]]; do
+                    fund_l2_amount=$1
+                    shift
+                done
+            fi
+            ;;
+        --no-fund-l2)
+            fund_l2=false
+            shift
             ;;
         --detach)
             detach=true
@@ -359,16 +384,16 @@ if $force_init; then
         echo == Bringing up Celestia Devnet
         docker-compose up -d da
         wait_up http://localhost:26659/header/1
-        export CELESTIA_NODE_AUTH_TOKEN="$(docker-compose exec da celestia bridge auth admin --node.store ${NODE_PATH})"
+        export CELESTIA_NODE_AUTH_TOKEN="$(docker-compose exec da celestia-da bridge auth admin --node.store ${NODE_PATH})"
     fi
 
-    if $local_l1; then
-        echo == Generating l1 keys
-        docker compose run scripts write-accounts
-        docker compose run --entrypoint sh geth -c "echo passphrase > /datadir/passphrase"
-        docker compose run --entrypoint sh geth -c "chown -R 1000:1000 /keystore"
-        docker compose run --entrypoint sh geth -c "chown -R 1000:1000 /config"
+    echo == Generating l1 keys
+    docker compose run scripts write-accounts
+    docker compose run --entrypoint sh geth -c "echo passphrase > /datadir/passphrase"
+    docker compose run --entrypoint sh geth -c "chown -R 1000:1000 /keystore"
+    docker compose run --entrypoint sh geth -c "chown -R 1000:1000 /config"
 
+    if $local_l1; then
         if $consensusclient; then
             echo == Writing configs
             docker compose run scripts write-geth-genesis-config
@@ -414,30 +439,34 @@ if $force_init; then
     echo == Deploying L2
     sequenceraddress=`docker-compose run --rm scripts print-address --account sequencer | tail -n 1 | tr -d '\r\n'`
 
-    docker compose run --entrypoint /usr/local/bin/deploy sequencer --l1conn ws://geth:8546 --l1keystore /home/user/l1keystore --sequencerAddress $sequenceraddress --ownerAddress $sequenceraddress --l1DeployAccount $sequenceraddress --l1deployment /config/deployment.json --authorizevalidators 10 --wasmrootpath /home/user/target/machines --l1chainid=$l1chainid --l2chainconfig /config/l2_chain_config.json --l2chainname arb-dev-test --l2chaininfo /config/deployed_chain_info.json
+    docker compose run --entrypoint /usr/local/bin/deploy sequencer --l1conn $L1_WS --l1keystore /home/user/l1keystore --sequencerAddress $sequenceraddress --ownerAddress $sequenceraddress --l1DeployAccount $sequenceraddress --l1deployment /config/deployment.json --authorizevalidators 10 --wasmrootpath /home/user/target/machines --l1chainid=$l1chainid --l2chainconfig /config/l2_chain_config.json --l2chainname arb-dev-test --l2chaininfo /config/deployed_chain_info.json --txtimeout 20m
     docker compose run --entrypoint sh sequencer -c "jq [.[]] /config/deployed_chain_info.json > /config/l2_chain_info.json"
 
     if $simple; then
         echo == Writing configs
-        docker compose run scripts write-config --simple --authToken $CELESTIA_NODE_AUTH_TOKEN
+        docker compose run scripts write-config --simple --authToken $CELESTIA_NODE_AUTH_TOKEN --l1url $L1_WS
     else
         echo == Writing configs
-        docker compose run scripts write-config --authToken $CELESTIA_NODE_AUTH_TOKEN
+        docker compose run scripts write-config --authToken $CELESTIA_NODE_AUTH_TOKEN --l1url $L1_WS
 
         echo == Initializing redis
         docker compose up --wait redis
         docker compose run scripts redis-init --redundancy $redundantsequencers
     fi
 
-    echo == Funding l2 funnel and dev key
-    docker-compose up --wait $INITIAL_SEQ_NODES
-    docker-compose run --rm scripts bridge-funds --ethamount 1 --wait --l1url $L1_WS
-    docker-compose run --rm scripts bridge-funds --ethamount 3 --wait --from "key_0x$devprivkey" --l1url $L1_WS
+    if $fund_l2; then
+        echo == Funding l2 funnel and dev key
+        docker-compose up --wait $INITIAL_SEQ_NODES
+        docker-compose run --rm scripts bridge-funds --ethamount $DEFAULT_FUND_AMOUNT_L2 --wait --l1url $L1_WS
+        docker-compose run --rm scripts bridge-funds --ethamount $DEFAULT_FUND_AMOUNT_L2 --wait --from "key_0x$devprivkey" --l1url $L1_WS
+    else
+        echo == Skip funding l2
+    fi
 
     if $tokenbridge; then
         echo == Deploying L1-L2 token bridge
         rollupAddress=`docker compose run --entrypoint sh poster -c "jq -r '.[0].rollup.rollup' /config/deployed_chain_info.json | tail -n 1 | tr -d '\r\n'"`
-        docker compose run -e ROLLUP_OWNER=$sequenceraddress -e ROLLUP_ADDRESS=$rollupAddress -e PARENT_KEY=$devprivkey -e PARENT_RPC=http://geth:8545 -e CHILD_KEY=$devprivkey -e CHILD_RPC=http://sequencer:8547 tokenbridge deploy:local:token-bridge
+        docker compose run -e ROLLUP_OWNER=$sequenceraddress -e ROLLUP_ADDRESS=$rollupAddress -e PARENT_KEY=$devprivkey -e PARENT_RPC=${L1_RPC} -e CHILD_KEY=$devprivkey -e CHILD_RPC=http://sequencer:8547 tokenbridge deploy:local:token-bridge
         docker compose run --entrypoint sh tokenbridge -c "cat network.json"
         echo
     fi

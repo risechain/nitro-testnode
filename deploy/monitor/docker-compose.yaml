@@ -1,0 +1,48 @@
+version: '3'
+
+volumes:
+  grafana_lib: {}
+  grafana_ds: 
+
+services:
+  grafana:
+    image: grafana/grafana:10.3.1
+    container_name: grafana
+    ports:
+      - "3001:3000"
+    volumes:
+      - grafana_lib:/var/lib/grafana
+#        - ${PWD}/grafana/privkey1.pem:/privkey1.pem:ro
+#        - ${PWD}/grafana/fullchain1.pem:/fullchain1.pem:ro
+      - ${PWD}/grafana/:/var/lib/grafana/ds/
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_SECURITY_ADMIN_PASSWORD: "admin"
+      GF_SECURITY_ADMIN_USER: "admin"
+      GF_SERVER_PROTOCOL: "http"
+      GF_SERVER_DOMAIN: "rise.ddns.net"
+#        GF_SERVER_CERT_FILE: "/fullchain1.pem"
+#        GF_SERVER_CERT_KEY: "/privkey1.pem"
+      GF_SERVER_METRICS_ENABLED: "true"
+      GF_SERVER_METRICS_INTERVAL_SECONDS: "10"
+
+  prometheus:
+    image: quay.io/prometheus/prometheus:v2.49.1
+    container_name: prometheus
+    volumes:
+     - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    command: "--config.file=/etc/prometheus/prometheus.yml --storage.tsdb.path=/prometheus"
+    ports:
+     - 9091:9090
+
+  alertmanager:
+    image: prom/alertmanager:v0.26.0
+    container_name: alertmanager
+    ports:
+      - 9093:9093
+    volumes:
+      - ./alertmanager/:/etc/alertmanager/
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/alertmanager/config.yml'
+      - '--storage.path=/alertmanager'
