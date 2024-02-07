@@ -444,10 +444,10 @@ if $force_init; then
 
     if $simple; then
         echo == Writing configs
-        docker compose run scripts write-config --simple --authToken $CELESTIA_NODE_AUTH_TOKEN --l1url $L1_WS
+        docker compose run scripts write-config --simple --authToken $CELESTIA_NODE_AUTH_TOKEN --l1url $L1_WS --daUrl $DA_RPC --daTendermintRpc $DA_TENDERMINT_RPC
     else
         echo == Writing configs
-        docker compose run scripts write-config --authToken $CELESTIA_NODE_AUTH_TOKEN --l1url $L1_WS
+        docker compose run scripts write-config --authToken $CELESTIA_NODE_AUTH_TOKEN --l1url $L1_WS --daUrl $DA_RPC --daTendermintRpc $DA_TENDERMINT_RPC
 
         echo == Initializing redis
         docker compose up --wait redis
