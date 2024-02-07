@@ -4,5 +4,6 @@ export const configpath = "/config";
 // Not secure. Do not sure for production purposes
 // New mnemonic run:
 // $ cast wallet new-mnemonic
-export const l1mnemonic =
-  "fan tornado ice math decade best evoke add few merry cheese circle";
+// export const l1mnemonic =
+//   "fan tornado ice math decade best evoke add few merry cheese circle";
+export const l1mnemonic = "family bamboo flight bike ill asthma box icon comic pink glimpse recipe";
