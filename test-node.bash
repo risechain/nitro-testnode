@@ -115,7 +115,7 @@ while [[ $# -gt 0 ]]; do
             ;;
         --local-da)
             NODE_PATH="/home/celestia/bridge/"
-            export DA_TENDERMINT_RPC="http://da:26658"
+            export DA_TENDERMINT_RPC="http://da:26657"
             export DA_RPC="http://da:26658"
             local_da=true
             shift
