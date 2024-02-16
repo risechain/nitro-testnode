@@ -237,7 +237,13 @@ while [[ $# -gt 0 ]]; do
             echo --simple          run a simple configuration. one node as sequencer/batch-poster/staker \(default unless using --dev\)
             echo --no-tokenbridge  don\'t build or launch tokenbridge
             echo --no-run          does not launch nodes \(useful with build or init\)
-            echo --no-simple       run a full configuration with separate sequencer/batch-poster/validator/relayer
+            echo --no-simple       run a full configuration with separate sequencer/batch-poster/validator/relayerv
+            echo --local-l1        run local geth client as L1, or go with L1_WS/L1_RPC settings by default
+            echo --local-da        run local celestia light client as DA, or go with DA_RPC settings by default
+            echo --no-fund-l1      skip funding l1
+            echo --no-fund-l2      skip funding l2
+            echo --fund-l1 x       fund l1 with x amount of ETH
+            echo --fund-l2 x       fund l2 with x amount of ETH
             echo
             echo script runs inside a separate docker. For SCRIPT-ARGS, run $0 script --help
             exit 0
@@ -384,7 +390,7 @@ if $force_init; then
         echo == Bringing up Celestia Devnet
         docker-compose up -d da
         wait_up http://localhost:26659/header/1
-        export CELESTIA_NODE_AUTH_TOKEN="$(docker-compose exec da celestia-da bridge auth admin --node.store ${NODE_PATH})"
+        export CELESTIA_NODE_AUTH_TOKEN="$(docker-compose exec da celestia bridge auth admin --node.store ${NODE_PATH})"
     fi
 
     echo == Generating l1 keys
@@ -392,6 +398,8 @@ if $force_init; then
     docker compose run --entrypoint sh geth -c "echo passphrase > /datadir/passphrase"
     docker compose run --entrypoint sh geth -c "chown -R 1000:1000 /keystore"
     docker compose run --entrypoint sh geth -c "chown -R 1000:1000 /config"
+
+    export ADDRESS_0=`docker-compose run --rm scripts print-address | tail -n 1 | tr -d '\r\n'`
 
     if $local_l1; then
         if $consensusclient; then
