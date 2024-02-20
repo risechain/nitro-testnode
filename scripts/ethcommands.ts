@@ -18,13 +18,14 @@ async function sendTransaction(argv: any, threadId: number) {
                 data: argv.data,
                 nonce: startNonce + index,
             })
-        console.log(response)
+        // console.log(response)
         if (argv.wait) {
           const receipt = await response.wait()
           console.log(receipt)
         }
         if (argv.delay > 0) {
-            await new Promise(f => setTimeout(f, argv.delay));
+          console.log('delay')
+          await new Promise(f => setTimeout(f, argv.delay));
         }
     }
 }

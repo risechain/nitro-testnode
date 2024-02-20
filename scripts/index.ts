@@ -19,6 +19,9 @@ import {
   sendL3Command,
   sendRPCCommand,
 } from "./ethcommands";
+import {
+  countTotalTxsCommand,
+} from "./benchmark";
 
 async function main() {
   await Yargs(hideBin(process.argv))
@@ -53,6 +56,7 @@ async function main() {
     .command(printAccountCommand)
     .command(redisReadCommand)
     .command(redisInitCommand)
+    .command(countTotalTxsCommand)
     .strict()
     .demandCommand(1, "a command must be specified")
     .epilogue(namedAccountHelpString)
