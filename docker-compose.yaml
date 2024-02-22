@@ -14,6 +14,19 @@ services:
       retries: 5
       start_period: 30s
 
+  daserver:
+    pid: host # allow debugging
+    image: nitro-node-dev-testnode
+    ports:
+      - "9876:9876"
+      - "9877:9877"
+    volumes:
+      - "l1keystore:/home/user/l1keystore"
+      - "config:/config"
+      - "da-root:/daroot"
+    entrypoint: ["/usr/local/bin/daserver"]
+    command: --enable-rpc --rpc-addr 0.0.0.0 --enable-rest --rest-addr 0.0.0.0 --data-availability.enable --data-availability.local-file-storage.enable --data-availability.local-file-storage.data-dir /daroot --data-availability.sequencer-inbox-address none
+
   blockscout:
     depends_on:
       - postgres
@@ -74,6 +87,7 @@ services:
       - "l1data:/datadir"
       - "l1keystore:/keystore"
       - "config:/config"
+      - "da-root:/daroot"
     command:
       - --keystore=/keystore
       - --http
@@ -180,6 +194,7 @@ services:
       - "seqdata:/home/user/.arbitrum/local/nitro"
       - "l1keystore:/home/user/l1keystore"
       - "config:/config"
+      - "da-root:/daroot"
     command: --conf.file /config/sequencer_config.json --node.feed.output.enable --node.feed.output.port 9642  --http.api net,web3,eth,txpool,debug --ws.api net,web3,eth,txpool,debug --node.seq-coordinator.my-url  ws://sequencer:8548 --metrics  --metrics-server.addr 0.0.0.0 --metrics-server.port 6070 --graphql.enable --graphql.vhosts * --graphql.corsdomain *
     depends_on:
       - geth
@@ -193,6 +208,7 @@ services:
     volumes:
       - "seqdata_b:/home/user/.arbitrum/local/nitro"
       - "config:/config"
+      - "da-root:/daroot"
     command: --conf.file /config/sequencer_config.json --node.seq-coordinator.my-url ws://sequencer_b:8548
     depends_on:
       - geth
@@ -207,6 +223,7 @@ services:
     volumes:
       - "seqdata_c:/home/user/.arbitrum/local/nitro"
       - "config:/config"
+      - "da-root:/daroot"
     command: --conf.file /config/sequencer_config.json --node.seq-coordinator.my-url ws://sequencer_c:8548
     depends_on:
       - geth
@@ -221,6 +238,7 @@ services:
     volumes:
       - "seqdata_d:/home/user/.arbitrum/local/nitro"
       - "config:/config"
+      - "da-root:/daroot"
     command: --conf.file /config/sequencer_config.json --node.seq-coordinator.my-url ws://sequencer_d:8548
     depends_on:
       - geth
@@ -236,6 +254,7 @@ services:
       - "unsafestaker-data:/home/user/.arbitrum/local/nitro"
       - "l1keystore:/home/user/l1keystore"
       - "config:/config"
+      - "da-root:/daroot"
     command: --conf.file /config/unsafe_staker_config.json
     depends_on:
       - sequencer
@@ -252,6 +271,7 @@ services:
       - "poster-data:/home/user/.arbitrum/local/nitro"
       - "l1keystore:/home/user/l1keystore"
       - "config:/config"
+      - "da-root:/daroot"
     command: --conf.file /config/poster_config.json
     depends_on:
       - geth
@@ -267,6 +287,7 @@ services:
       - "poster-data-b:/home/user/.arbitrum/local/nitro"
       - "l1keystore:/home/user/l1keystore"
       - "config:/config"
+      - "da-root:/daroot"
     command: --conf.file /config/poster_config.json
     depends_on:
       - geth
@@ -282,6 +303,7 @@ services:
       - "poster-data-c:/home/user/.arbitrum/local/nitro"
       - "l1keystore:/home/user/l1keystore"
       - "config:/config"
+      - "da-root:/daroot"
     command: --conf.file /config/poster_config.json
     depends_on:
       - geth
@@ -297,6 +319,7 @@ services:
       - "validator-data:/home/user/.arbitrum/local/nitro"
       - "l1keystore:/home/user/l1keystore"
       - "config:/config"
+      - "da-root:/daroot"
     command: --conf.file /config/validator_config.json --http.port 8547 --http.api net,web3,arb,debug --ws.port 8548
     depends_on:
       - sequencer
@@ -324,6 +347,7 @@ services:
       - "127.0.0.1:8949:8549"
     volumes:
       - "config:/config"
+      - "da-root:/daroot"
     command: --conf.file /config/validation_node_config.json
     entrypoint: /usr/local/bin/nitro-val
 
@@ -370,3 +394,4 @@ volumes:
   config:
   postgres-data:
   sdk-data:
+  da-root:

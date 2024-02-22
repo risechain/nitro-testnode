@@ -228,6 +228,24 @@ function writeConfigs(argv: any) {
                 "namespace-id": "00230886b5184a07a6a3",
                 "auth-token": argv.authToken,
             },
+            // "data-availability": {
+            //     "enable": true,
+            //     "local-file-storage": {
+            //         "enable": true,
+            //         "data-dir": "/daroot"
+            //     },
+            //     "sequencer-inbox-address": "none",
+            //     "rest-aggregator": {
+            //         "enable": true,
+            //         "urls": [
+            //             "http://daserver:9877"
+            //         ]
+            //     },
+            //     "rpc-aggregator": {
+            //         "enable": false,
+            //         "assumed-honest": 1
+            //     }
+            // }
         },
         "execution": {
             "sequencer": {
@@ -283,6 +301,7 @@ function writeConfigs(argv: any) {
         let posterConfig = JSON.parse(baseConfJSON)
         posterConfig.node["seq-coordinator"].enable = true
         posterConfig.node["batch-poster"].enable = true
+        // posterConfig.node["data-availability"]["rpc-aggregator"].enable = true
         fs.writeFileSync(path.join(consts.configpath, "poster_config.json"), JSON.stringify(posterConfig))
     }
 

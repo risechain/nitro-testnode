@@ -59,6 +59,7 @@ batchposters=1
 devprivkey=2fc338a5ddd5f1fef594cf904225f5cfc77602339a4dd16864b53144a2de38fc
 l1chainid=11155111
 simple=true
+daserver=false
 while [[ $# -gt 0 ]]; do
     case $1 in
         --init)
@@ -385,6 +386,14 @@ if $force_init; then
         docker volume rm $leftoverVolumes
     fi
 
+    # run daserver
+    if $daserver; then
+        echo == Bringing up Daserver Devnet
+        docker-compose up -d daserver
+        wait_up http://localhost:9876
+        wait_up http://localhost:9877
+    fi
+
     # We use another vm to run celestia testnet node, so just comment these lines bellow
     if $local_da; then
         echo == Bringing up Celestia Devnet
@@ -398,6 +407,7 @@ if $force_init; then
     docker compose run --entrypoint sh geth -c "echo passphrase > /datadir/passphrase"
     docker compose run --entrypoint sh geth -c "chown -R 1000:1000 /keystore"
     docker compose run --entrypoint sh geth -c "chown -R 1000:1000 /config"
+    docker compose run --entrypoint sh geth -c "chown -R 1000:1000 /daroot"
 
     export ADDRESS_0=`docker-compose run --rm scripts print-address | tail -n 1 | tr -d '\r\n'`
 
