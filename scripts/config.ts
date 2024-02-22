@@ -220,7 +220,7 @@ function writeConfigs(argv: any) {
                 }
             },
             "celestia-cfg": {
-                "enable": true,
+                "enable": false,
                 // "rpc": "http://172.31.25.45:26658",
                 // "tendermint-rpc": "http://rpc-mocha.pops.one:26657",
                 "rpc": argv.daUrl,

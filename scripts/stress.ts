@@ -8,7 +8,7 @@ export const stressOptions = {
 }
 
 
-async function runThread(argv: any, threadIndex: number, commandHandler: (argv: any, thread: number) => Promise<void>) {
+export async function runThread(argv: any, threadIndex: number, commandHandler: (argv: any, thread: number) => Promise<void>) {
     await commandHandler(argv, threadIndex)
 }
 

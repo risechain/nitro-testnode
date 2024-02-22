@@ -7,7 +7,7 @@ import * as ERC20 from "@openzeppelin/contracts/build/contracts/ERC20.json";
 import * as fs from "fs";
 const path = require("path");
 
-async function sendTransaction(argv: any, threadId: number) {
+export async function sendTransaction(argv: any, threadId: number) {
     const account = namedAccount(argv.from, threadId).connect(argv.provider)
     const startNonce = await account.getTransactionCount("pending")
     for (let index = 0; index < argv.times; index++) {
@@ -21,7 +21,7 @@ async function sendTransaction(argv: any, threadId: number) {
         // console.log(response)
         if (argv.wait) {
           const receipt = await response.wait()
-          console.log(receipt)
+          // console.log(receipt)
         }
         if (argv.delay > 0) {
           console.log('delay')

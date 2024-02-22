@@ -4,10 +4,10 @@ set -e
 
 L1_WS=ws://geth:8546
 L2_WS=ws://sequencer:8548
-NTHREADS=1
+NTHREADS=2000
 THREAD_FUND_AMT=100
-BRIDGE_AMT=$((NTHREADS*THREAD_FUND_AMT+10))
-TXS_PER_THREAD=2
+BRIDGE_AMT=$((NTHREADS*THREAD_FUND_AMT+50000))
+TXS_PER_THREAD=200
 SHOULD_FUND=false
 
 if $SHOULD_FUND; then
@@ -17,13 +17,16 @@ if $SHOULD_FUND; then
 
     # 2. Fund threads account
     echo == Fund thread accounts
-    for ((i=0; i< ${NTHREADS}; i++))
-    do
-        echo == Fund thread account ${i}
-        docker compose run scripts send-l2 --threadId ${i} --ethamount ${THREAD_FUND_AMT} --to threaduser_l2user --l2url $L2_WS
-    done
-    # Make sure the fund transaction will be wait
-    docker compose run scripts send-l2 --threadId 0 --ethamount 0.1 --to threaduser_l2user --l2url $L2_WS --wait --delay 5000
+    # for ((i=0; i< ${NTHREADS}; i++))
+    # do
+    #     echo == Fund thread account ${i}
+    #     docker compose run scripts send-l2 --threadId ${i} --ethamount ${THREAD_FUND_AMT} --to threaduser_l2user --l2url $L2_WS
+    # done
+    # # Make sure the fund transaction will be wait
+    # docker compose run scripts send-l2 --threadId 0 --ethamount 0.1 --to threaduser_l2user --l2url $L2_WS --wait --delay 5000
+
+    # faster way
+    docker compose run scripts fund-l2thread-accounts --l2url $L2_WS --to l2user --nThreads ${NTHREADS} --ethamount ${THREAD_FUND_AMT} --wait 
 fi
 
 # Get last block height

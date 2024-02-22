@@ -20,7 +20,7 @@ import {
   sendRPCCommand,
 } from "./ethcommands";
 import {
-  countTotalTxsCommand,
+  countTotalTxsCommand, fundL2ThreadAccounts,
 } from "./benchmark";
 
 async function main() {
@@ -57,6 +57,7 @@ async function main() {
     .command(redisReadCommand)
     .command(redisInitCommand)
     .command(countTotalTxsCommand)
+    .command(fundL2ThreadAccounts)
     .strict()
     .demandCommand(1, "a command must be specified")
     .epilogue(namedAccountHelpString)
