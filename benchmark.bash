@@ -4,11 +4,20 @@ set -e
 
 L1_WS=ws://geth:8546
 L2_WS=ws://sequencer:8548
-NTHREADS=2000
+NTHREADS=3000
 THREAD_FUND_AMT=100
 BRIDGE_AMT=$((NTHREADS*THREAD_FUND_AMT+50000))
-TXS_PER_THREAD=200
-SHOULD_FUND=false
+TXS_PER_THREAD=30
+SHOULD_FUND=true
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --no-fund)
+            SHOULD_FUND=false
+            shift
+            ;;
+    esac
+done
 
 if $SHOULD_FUND; then
     # 1. Bridge token to funnel account
@@ -27,6 +36,9 @@ if $SHOULD_FUND; then
 
     # faster way
     docker compose run scripts fund-l2thread-accounts --l2url $L2_WS --to l2user --nThreads ${NTHREADS} --ethamount ${THREAD_FUND_AMT} --wait 
+
+    # sleep a while before testing to avoid counting the funding transactions in the final result.
+    sleep 10
 fi
 
 # Get last block height
@@ -37,6 +49,7 @@ echo Last Block height is ${latestBlock}
 startTime=`date +%s`
 echo == Send transactions at ${startTime}
 docker compose run scripts send-l2 --threads ${NTHREADS} --times ${TXS_PER_THREAD} --ethamount 0.001 --from threaduser_l2user --to user_l2user --l2url $L2_WS
+
 endTime=`date +%s`
 echo == Finish sending transactions at ${endTime}
 
